@@ -8,7 +8,7 @@ sns = boto3.client('sns')
 
 PASSWORD_GRACE_PERIOD = 2
 MaxPasswordAge = 1
-email_from = "Support <IAM_Access_Password_Check@******.com>"
+email_from = "slokesh2912@gmail.com"
 
 def lambda_handler(event, context):
     passwordexpireduserlist = {}
@@ -47,7 +47,16 @@ def lambda_handler(event, context):
                 user_mail = get_user_tag(row['user'])
                 print(user_mail)
                 if user_mail != None: 
-                    email_alert = ses.send_templated_email(Source=email_from, Destination={'ToAddresses': [user_mail]},Template='SES-TEMPLATE-IAM-Password-Expired',TemplateData=' "password_expires": "password_expires" ')
+                    response = ses.verify_email_identity(EmailAddress = user_mail)
+                    email_alert = ses.send_email(
+            Destination={'ToAddresses': [user_mail ]},
+            Message={
+                'Body': {'Html': {'Charset': 'UTF-8', 'Data': 'SES-TEMPLATE-IAM-Password-Expired'}},
+                'Subject': {'Charset': 'UTF-8',
+                            'Data': f'password expired change the your account password!'}
+            },
+            Source=email_from
+        )
                 else:
                     continue
             
@@ -56,7 +65,16 @@ def lambda_handler(event, context):
                 #print 'Checking the user tags to find the Mail ID'
                 user_mail = get_user_tag(row['user'])
                 if user_mail != None:
-                    email_alert = ses.send_templated_email(Source=email_from, Destination={'ToAddresses': [user_mail]},Template='SES-TEMPLATE-IAM-Password-Warning',TemplateData=' "password_expires": "password_expires"')
+                    response = ses.verify_email_identity(EmailAddress = user_mail)
+                    email_alert = ses.send_email(
+            Destination={'ToAddresses': [user_mail ]},
+            Message={
+                'Body': {'Html': {'Charset': 'UTF-8', 'Data': 'SES-PASSWORD-GRACE-PERIOD'}},
+                'Subject': {'Charset': 'UTF-8',
+                            'Data': f'Remember to change your AWS password!'}
+            },
+            Source=email_from
+        )
                 else:
                     continue
     
@@ -78,7 +96,6 @@ def get_user_tag(username):
         for tag in tags['Tags']:
             if tag['Key'] == 'mail':
                 mail = tag['Value']
-                #print('Found user mail ' + mail)
         if mail == None:
             print('Mail Tag is missing for this user')
     else:
