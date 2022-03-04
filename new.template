@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A  EC2 instance security group rules attaching
+Parameters:
+  EC2Instance1:
+    Type: String
+    Default: ''
+    Description: Please enter the instance ID for ALB/NLB registration
+  EC2Instance2:
+    Type: String
+    Default: ''
+    Description: Please enter the instance ID for ALB/NLB registration
+Resources:
+  Primerinvoke:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn: SecurityLambdaFunction
+    Version: "1.0"
+    Properties:
+        ServiceToken: !GetAtt SecurityLambdaFunction.Arn
+  SecurityLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Role: arn:aws:iam::549109765285:role/lambda_test
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Environment:
+        Variables:
+          instanceid:
+            Ref: EC2Instance1
+          instanceId:
+            Ref: EC2Instance2
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import json
+          import cfnresponse
+          def lambda_handler(event, context):
+             count=0
+             physicalId = event['PhysicalResourceId'] if 'PhysicalResourceId' in event else None
+             region='ap-south-1'
+             ec2 = boto3.client('ec2', region_name=region)
+             def success(data={}):
+                 cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
+             def failed(e):
+                 cfnresponse.send(event, context, cfnresponse.FAILED, str(e))
+             def sg_creation():
+                 response = ec2.create_security_group(
+                 Description='test-and-delete it',
+                 GroupName='cft-test',
+                 VpcId='vpc-0e3007d2d6a300eaa')
+                 physicalId = response['GroupId']
+                 event['PhysicalResourceId'] = physicalId
+                 print(event['PhysicalResourceId'])
+                 data={'Data': 'OK'}
+                 cfnresponse.send(event, context, cfnresponse.SUCCESS, data, physicalId)
+             if event['RequestType'] in set(['Create', 'Update']):
+                 sg_creation()
+                 instanceids= [os.environ['instanceid'],os.environ['instanceId']]
+                 print("listing instanceids:",instanceids)
+                 try:
+                    for i in range(len(instanceids)):
+                        print(f'count value {count}')
+                        response=ec2.describe_instances(InstanceIds=[instanceids[i]])
+                        for reservation in response['Reservations']:
+                            for instance in reservation['Instances']:
+                                for securityGroup in instance['SecurityGroups']:
+                                    print("SG ID: {}, Name: {}".format(securityGroup['GroupId'],securityGroup['GroupName']))
+                                    sg_id=securityGroup['GroupId']
+                                    print(f'Modification doing to security groupid {sg_id} for InstanceId {instanceids[i]}')
+                                    ec2.authorize_security_group_ingress( 
+                                    GroupId=sg_id, 
+                                    IpPermissions=[
+                                    {
+                                    'IpProtocol': 'tcp', 
+                                    'FromPort': 443, 
+                                    'ToPort': 443, 
+                                    'UserIdGroupPairs': [{ 'GroupId': sg_id}] }],)
+                                    count=count+1
+                    success({'Data': 'OK'},count)
+                    return 
+                 except Exception as e:
+                    raise Exception('An exception occurred: %s' % e)
+                    failed(e)
+                    return
+             elif not 'RequestType' in event:
+                 success({'Data': 'Unhandled request type'})
+                 return
+             elif event['RequestType'] == 'Delete':
+                 print("nothing to delete")
+                 success({'Data': 'OK'})
+                 return
+             else:
+                 print("client error occur")
+                 e='program error occured'	
+                 failed(e)
+                 return
