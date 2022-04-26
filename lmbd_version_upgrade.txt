@@ -1,0 +1,36 @@
+import json
+import boto3
+import pprint
+
+def lambda_handler(event, context):
+    lmd_fun=boto3.client("lambda",region_name="ap-south-1")
+    rply=lmd_fun.list_functions()
+    #pprint.pprint(rply)
+    
+    for fun in rply['Functions']:
+        fn_name=fun['FunctionName']
+        print("Function Name:",fn_name)
+        
+    
+        reply=lmd_fun.get_function(FunctionName=fn_name)
+        #pprint.pprint(reply)
+        print("Runtime Version:",reply['Configuration']['Runtime'])
+        if  reply['Configuration']['Runtime'] == 'nodejs14.x' or reply['Configuration']['Runtime'] == 'nodejs12.x':
+            print('''Skipping the upgradtion!!!,Because Runtime is Nodejs''',fn_name)
+            
+        elif reply['Configuration']['Runtime'] == 'python3.9' or reply['Configuration']['Runtime'] == 'python3.8' or reply['Configuration']['Runtime'] == 'python3.6' or reply['Configuration']['Runtime'] == 'python2.7':
+            print("Runtime Version is Upgrading ")
+            try:
+                response=lmd_fun.update_function_configuration(
+                FunctionName= fn_name,
+                Runtime='python3.6')
+            except ClientError in e:
+                print(e)
+            finally:
+                num=200
+                if response['ResponseMetadata']['HTTPStatusCode'] == num :
+                    print('Upgradation Done Succesfully')
+                else:
+                    print('Upgradation Not Done Internal Error Occur!!!')
+        else:
+            print(f'Lambda Function Runtime is not python to {fn_name}')
