@@ -1,0 +1,99 @@
+Access Key Rotating:- 
+
+Add the user to iam , the users access key and secret key need to be in active state à under security credentials option u can find the active state of keys 
+
+Add the tags to the user under tags option in created user. 
+
+Tag[key] = CheckAccessKeyAge 
+
+Tag[value]= example@gmail.com -> give the mailed 
+
+Create the role with custom policy: 
+
+                  { 
+
+    "Version": "2012-10-17", 
+
+    "Statement": [ 
+
+        { 
+
+            "Sid": "VisualEditor0", 
+
+            "Effect": "Allow", 
+
+            "Action": [ 
+
+                "ses:SendEmail", 
+
+                "iam:ListAccessKeys" 
+
+            ], 
+
+            "Resource": [ 
+
+                "arn:aws:iam::<account-id>:user/*", 
+
+                "arn:aws:ses:ap-northeast-1:<account-id>:identity/*" 
+
+            ] 
+
+        }, 
+
+        { 
+
+            "Sid": "VisualEditor1", 
+
+            "Effect": "Allow", 
+
+            "Action": [ 
+
+                "iam:ListUsers", 
+
+                "iam:ListUserTags" 
+
+            ], 
+
+            "Resource": "*" 
+
+        }, 
+
+        { 
+
+            "Sid": "VisualEditor2", 
+
+            "Effect": "Allow", 
+
+            "Action": [ 
+
+                "ses:VerifyEmailIdentity", 
+
+                "ses:VerifyDomainIdentity", 
+
+                "ses:VerifyEmailAddress" 
+
+            ], 
+
+            "Resource": "*" 
+
+        } 
+
+    ] 
+
+} 
+
+Create the lambda function , attach the created role by using use existing role option 
+
+Add the script under code option . 
+
+Click on deploy  
+
+Click on test à add some name over in box  
+
+Click on test again to run the script 
+
+Check the aws ses console  
+
+Under the verified identities -> under these u can find the taged mail ids and verifiy it you’re your mail for first time. 
+
+From second time, the script will send the mail if your access keys is older than assumed days from current date.  
