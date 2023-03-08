@@ -7,17 +7,17 @@ import boto3
 class Ec2Instances(object):
     
     def __init__(self, region):
-        self.ec2 = boto3.client('ec2', region_name=region)
+        self.ec2 = boto3.client('ec2', region_name=region) #ec2 and region is been stored
         
     def delete_snapshots(self, older_days):
         count = 0
         snapshots = self.get_created_snapshots()
-        for snapshot in snapshots['Snapshots']:
+        for snapshot in snapshots['Snapshots']:// storing it in dictionary key=snapshts and values= snapshots id
             fmt_start_time = snapshot['StartTime']
             #ebs_day_dif=datetime.now(tz=timezone.utc).date()-snapshot['StartTime'].date()
             #print("ebs_day_dif",ebs_day_dif)
             #if (ebs_day_dif > days)
-            if (fmt_start_time < self.get_delete_data(older_days=days)):
+            if (fmt_start_time < self.get_delete_data(older_days=days)): #snapshot start time is 1st march and older days is 2 .returned ans is 6th march 1<6
                 self.delete_snapshot(snapshot['SnapshotId'])
                 count+1
                 print("deleted snapshot-Id{} ".format(snapshot['SnapshotId']))
@@ -25,14 +25,14 @@ class Ec2Instances(object):
                 
     def get_created_snapshots(self):
         snapshots = self.ec2.describe_snapshots(Filters=[{'Name': 'owner-id', 'Values': ['771314734963']}])
-        return snapshots
+        return snapshots #returning the snapshot to the called function itself
 
     def get_delete_data(self, older_days):
-        delete_time = datetime.now(tz=timezone.utc) - timedelta(days=older_days)
+        delete_time = datetime.now(tz=timezone.utc) - timedelta(days=older_days) #current time date with mins and secs-datetime.now
         #last_year_date=datetime.now(tz=timezone.utc).date()-relativedelta(years=year)
         #days=datetime.now(tz=timezone.utc).date()-last_year_date
         #print("days",days)
-        return delete_time;
+        return delete_time; #returning to the function called o/p:2023-03-06 15:42:09.984102+00:00 (90 days older)
 
     def delete_snapshot(self, snapshot_id):
         self.ec2.delete_snapshot(SnapshotId=snapshot_id)
@@ -43,13 +43,13 @@ def lambda_handler(event, context):
     snapshot_id=''
     #year=1
     ec2_reg = boto3.client('ec2')
-    regions = ec2_reg.describe_regions()
+    regions = ec2_reg.describe_regions() #returning in dictionary(key and value)
     #region_name=['us-east-2','us-west-2','ap-northeast-1']
     #len_reg_name=len(region_name)
-    for region in regions['Regions']:
-        region_name = region['RegionName']
-    #for i in range(len_reg_name):
-        instances = Ec2Instances(region_name)
+    for region in regions['Regions']: #eturning in dictionary
+        region_name = region['RegionName'] #value is taken
+    #for i in range(len_reg_name): #i=3
+        instances = Ec2Instances(region_name) #it passes us-east-1 and one by one
         deleted_counts = instances.delete_snapshots(1)
         print("deleted_counts for region "+ str(region_name) +" is " + str(deleted_counts))
     return 'completed'
